@@ -1,18 +1,14 @@
 {
-  "name": "my-invincible-game",
-  "version": "0.0.0",
-  "private": true,
+  "name": "my-invincible-server",
+  "version": "1.0.0",
+  "description": "Invincible Multiplayer Server",
+  "main": "server.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "vite": "^8.0.12"
+    "start": "node server.js"
   },
   "dependencies": {
-    "@capacitor/android": "^8.3.4",
-    "@capacitor/cli": "^8.3.4",
-    "@capacitor/core": "^8.3.4"
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   }
 }
