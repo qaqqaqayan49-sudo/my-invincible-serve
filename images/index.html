@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invincible Fighter - Оптимизированная версия</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            color: white;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            border: 2px solid #444;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #0a0a0a;
+            border-radius: 8px;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .ui-panel {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            pointer-events: auto;
+        }
+        
+        .ui-panel h3 {
+            color: #FFD700;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        #hp-bar {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .heart {
+            width: 20px;
+            height: 20px;
+            background: #ff0000;
+            border-radius: 50%;
+            position: relative;
+        }
+        
+        .heart.empty {
+            background: #333;
+        }
+        
+        .heart::after {
+            content: '❤';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+        }
+        
+        #rage-bar {
+            width: 200px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #rage-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff6600, #ffaa00);
+            transition: width 0.3s ease;
+        }
+        
+        #xp-bar {
+            width: 200px;
+            height: 15px;
+            background: #333;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #xp-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00ff00, #00aa00);
+            transition: width 0.3s ease;
+        }
+        
+        .stat-text {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 5px;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        #controls h4 {
+            color: #FFD700;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        #controls div {
+            margin-bottom: 5px;
+        }
+        
+        #controls kbd {
+            background: #444;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #fff;
+            font-weight: bold;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #00ff00, #00aa00);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0, 255, 0, 0.4);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="ui">
+            <div class="ui-panel">
+                <h3>Здоровье</h3>
+                <div id="hp-bar"></div>
+            </div>
+            
+            <div class="ui-panel">
+                <h3>Статистика</h3>
+                <div class="stat-text" id="score">Очки: 0</div>
+                <div class="stat-text" id="wave">Волна: 1</div>
+                <div class="stat-text" id="level">Уровень: 1</div>
+            </div>
+            
+            <div class="ui-panel">
+                <h3>Ярость</h3>
+                <div id="rage-bar"></div>
+                <h3>Опыт</h3>
+                <div id="xp-bar"></div>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <h4>Управление</h4>
+            <div><kbd>WASD</kbd> / <kbd>Стрелки</kbd> - Движение</div>
+            <div><kbd>Пробел</kbd> / <kbd>ЛКМ</kbd> - Атака</div>
+            <div><kbd>Shift</kbd> / <kbd>X</kbd> - Рывок</div>
+            <div><kbd>1-5</kbd> - Способности</div>
+            <div><kbd>ESC</kbd> - Пауза</div>
+            <div><kbd>Tab</kbd> - Магазин</div>
+        </div>
+    </div>
+    
+    <!-- Подключение модулей в правильном порядке -->
+    <script src="camera-system.js"></script>
+    <script src="particle-pool.js"></script>
+    <script src="entities.js"></script>
+    <script src="bosses.js"></script>
+    <script src="synergy-system.js"></script>
+    <script src="upgrade-system.js"></script>
+    <script src="ui-controller.js"></script>
+    <script src="input-handler.js"></script>
+    <script src="game-core.js"></script>
+    
+    <script>
+        // Инициализация игры после загрузки всех модулей
+        window.addEventListener('load', () => {
+            console.log('Загрузка файтинг-платформера Invincible...');
+            
+            // Проверка загрузки всех модулей
+            const requiredModules = [
+                'CameraSystem', 'ParticlePool', 'Enemy', 'MiniBoss',
+                'SynergySystem', 'UpgradeSystem', 'UIController', 
+                'InputHandler', 'GameCore'
+            ];
+            
+            let allLoaded = true;
+            for (let module of requiredModules) {
+                if (typeof window[module] === 'undefined') {
+                    console.error(`Модуль ${module} не загружен`);
+                    allLoaded = false;
+                }
+            }
+            
+            if (allLoaded) {
+                console.log('Все модули успешно загружены!');
+                
+                // Автоматический запуск игры
+                setTimeout(() => {
+                    if (game && typeof game.startNewGame === 'function') {
+                        game.startNewGame();
+                    }
+                }, 1000);
+            } else {
+                console.error('Ошибка загрузки модулей');
+            }
+        });
+        
+        // Обработка ошибок
+        window.addEventListener('error', (e) => {
+            console.error('Ошибка в игре:', e.error);
+        });
+    </script>
+</body>
+</html>

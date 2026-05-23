@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Shooter - Optimized</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #0a0a0a;
+            cursor: crosshair;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .ui-element {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+        
+        #score {
+            top: 10px;
+            left: 10px;
+        }
+        
+        #wave {
+            top: 10px;
+            left: 150px;
+        }
+        
+        #health {
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        
+        .heart {
+            width: 20px;
+            height: 20px;
+            background: #ff0000;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+        
+        .heart.empty {
+            background: #333;
+        }
+        
+        #fps {
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+        }
+        
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .menu-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: #00ffff;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        
+        .menu-button {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 2px solid #00ffff;
+            color: #ffffff;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+            pointer-events: all;
+        }
+        
+        .menu-button:hover {
+            background: linear-gradient(135deg, #16213e, #1a1a2e);
+            border-color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.3);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Оптимизированные стили для производительности */
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            will-change: transform;
+        }
+        
+        #gameCanvas {
+            will-change: transform;
+            image-rendering: optimizeSpeed;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="ui">
+            <div id="score" class="ui-element">Score: 0</div>
+            <div id="wave" class="ui-element">Wave: 1</div>
+            <div id="health" class="ui-element">
+                <div class="heart"></div>
+                <div class="heart"></div>
+                <div class="heart"></div>
+            </div>
+            <div id="fps" class="ui-element">FPS: 60</div>
+        </div>
+        
+        <div id="menu" class="hidden">
+            <div class="menu-title">SPACE SHOOTER</div>
+            <button class="menu-button" onclick="game.startNewGame()">START GAME</button>
+            <button class="menu-button" onclick="game.showSettings()">SETTINGS</button>
+            <button class="menu-button" onclick="game.showHighScores()">HIGH SCORES</button>
+        </div>
+    </div>
+
+    <!-- Подключение оптимизированных модулей -->
+    <script src="optimized-particles.js"></script>
+    <script src="player.js"></script>
+    <script src="enemy.js"></script>
+    <script src="camera-system.js"></script>
+    <script src="synergy-system.js"></script>
+    <script src="upgrade-system.js"></script>
+    <script src="game-core.js"></script>
+    
+    <script>
+        // Инициализация игры после загрузки всех модулей
+        window.addEventListener('load', () => {
+            console.log('Инициализация оптимизированной игры...');
+            
+            // Создаем экземпляр игры
+            game = new GameCore();
+            
+            // Показываем меню
+            document.getElementById('menu').classList.remove('hidden');
+            
+            // Оптимизация: предзагрузка ресурсов
+            game.preloadAssets().then(() => {
+                console.log('Все ресурсы загружены');
+                game.isReady = true;
+            });
+            
+            // Профилировщик производительности
+            const profiler = {
+                frameCount: 0,
+                lastTime: performance.now(),
+                fps: 60,
+                
+                update() {
+                    this.frameCount++;
+                    const currentTime = performance.now();
+                    
+                    if (currentTime - this.lastTime >= 1000) {
+                        this.fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastTime));
+                        this.frameCount = 0;
+                        this.lastTime = currentTime;
+                        
+                        // Обновляем FPS в UI
+                        document.getElementById('fps').textContent = `FPS: ${this.fps}`;
+                        
+                        // Оптимизация: если FPS падает, уменьшаем качество частиц
+                        if (this.fps < 30) {
+                            particlePool.maxSize = 200;
+                        } else if (this.fps > 50) {
+                            particlePool.maxSize = 500;
+                        }
+                    }
+                }
+            };
+            
+            // Добавляем профилировщик в игровой цикл
+            const originalUpdate = game.update.bind(game);
+            game.update = function(deltaTime) {
+                profiler.update();
+                originalUpdate(deltaTime);
+            };
+            
+            // Оптимизация памяти
+            setInterval(() => {
+                if (game && game.isReady) {
+                    // Очистка неиспользуемых ресурсов
+                    if (particlePool.active.length > particlePool.maxSize * 0.8) {
+                        console.log('Очистка пула частиц...');
+                        particlePool.clear();
+                    }
+                    
+                    // Сборка мусора
+                    if (window.gc) {
+                        window.gc();
+                    }
+                }
+            }, 30000); // Каждые 30 секунд
+            
+            console.log('Оптимизированная игра готова!');
+        });
+        
+        // Обработка ошибок
+        window.addEventListener('error', (e) => {
+            console.error('Ошибка в игре:', e.error);
+        });
+        
+        // Оптимизация: пауза при скрытии вкладки
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && game) {
+                game.isPaused = true;
+            } else if (game && game.gameState === 'playing') {
+                game.isPaused = false;
+            }
+        });
+        
+        // Оптимизация: предзагрузка изображений
+        const imageCache = new Map();
+        
+        function preloadImage(src) {
+            return new Promise((resolve, reject) => {
+                if (imageCache.has(src)) {
+                    resolve(imageCache.get(src));
+                    return;
+                }
+                
+                const img = new Image();
+                img.onload = () => {
+                    imageCache.set(src, img);
+                    resolve(img);
+                };
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
+        
+        // Глобальные функции для совместимости
+        function showMenu() {
+            document.getElementById('menu').classList.remove('hidden');
+            if (game) {
+                game.gameState = 'menu';
+                game.isPaused = true;
+            }
+        }
+        
+        function hideMenu() {
+            document.getElementById('menu').classList.add('hidden');
+            if (game) {
+                game.isPaused = false;
+            }
+        }
+        
+        // Оптимизация: управление производительностью
+        const performanceSettings = {
+            particleQuality: 'high',
+            shadowQuality: 'medium',
+            effectsEnabled: true
+        };
+        
+        function adjustPerformance(fps) {
+            if (fps < 30) {
+                performanceSettings.particleQuality = 'low';
+                performanceSettings.shadowQuality = 'low';
+                performanceSettings.effectsEnabled = false;
+            } else if (fps < 45) {
+                performanceSettings.particleQuality = 'medium';
+                performanceSettings.shadowQuality = 'low';
+                performanceSettings.effectsEnabled = true;
+            } else {
+                performanceSettings.particleQuality = 'high';
+                performanceSettings.shadowQuality = 'medium';
+                performanceSettings.effectsEnabled = true;
+            }
+        }
+        
+        // Экспорт для отладки
+        window.gameDebug = {
+            particlePool,
+            performanceSettings,
+            adjustPerformance,
+            imageCache
+        };
+    </script>
+</body>
+</html>

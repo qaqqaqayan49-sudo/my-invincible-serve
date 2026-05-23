@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Invincible: Viltrum Defense</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000005; 
+            color: white; 
+            font-family: 'Courier New', Courier, monospace; 
+            -webkit-user-select: none; 
+            user-select: none; 
+        }
+
+        canvas { 
+            display: block; 
+            cursor: crosshair; 
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 100vw;
+            max-height: 100vh;
+            background: #000;
+        }
+
+        #ui-layer { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 5; }
+        #ui { font-size: 24px; text-shadow: 2px 2px 0 #000; font-weight: bold; }
+        #scoreVal { color: #FFD700; }
+        #highScore { font-size: 18px; color: #aaa; margin-top: 5px; }
+        #hp-bar { display: flex; gap: 5px; margin-top: 10px; }
+        .heart { width: 25px; height: 25px; background: #ff4d4d; border: 2px solid #fff; border-radius: 50%; }
+        .heart.empty { background: #333; }
+        #rage-container { width: 150px; height: 10px; border: 2px solid #fff; background: #222; margin-top: 10px; position: relative; }
+        #rage-fill { width: 0%; height: 100%; background: #ff8000; transition: width 0.2s; }
+        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,10,0.9); z-index: 10; }
+        .menu-banner { width: 100%; background: #202060; border-top: 4px solid #fff; border-bottom: 4px solid #fff; text-align: center; padding: 20px 0; margin-bottom: 30px; }
+        h1 { margin: 0; font-size: 50px; letter-spacing: 5px; color: #fff; text-shadow: 3px 3px 0 #FFD700; }
+        .btn-group { display: flex; gap: 15px; }
+        button { padding: 15px 40px; font-size: 18px; cursor: pointer; border: 3px solid #fff; background: #000; color: #fff; font-family: inherit; font-weight: bold; transition: all 0.2s; }
+        button:hover { background: #fff; color: #000; transform: scale(1.1); }
+    </style>
+</head>
+<body>
+    <div id="ui-layer">
+        <div id="ui">Счет: <span id="scoreVal">0</span></div>
+        <div id="highScore">Рекорд: <span id="highVal">0</span></div>
+        <div id="hp-bar">
+            <div class="heart" id="h1"></div>
+            <div class="heart" id="h2"></div>
+            <div class="heart" id="h3"></div>
+        </div>
+        <div id="rage-container"><div id="rage-fill"></div></div>
+    </div>
+
+    <div id="menu">
+        <div class="menu-banner"><h1>INVINCIBLE</h1></div>
+        <div class="btn-group">
+            <button onclick="startGame(1)">Легко</button>
+            <button onclick="startGame(2)">Нормально</button>
+            <button onclick="startGame(3)">Безумие</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+  
+    </div>
+
+<script>
+
+let player = { x: 600, y: 450, targetX: 600, targetY: 450, angle: 0, isDashing: false, dashTimer: 0, hp: 3, invulnerable: 0, rage: 0, isRage: false }; 
+
+function addScore(amount) {
+    score += amount;
+    const sEl = document.getElementById('scoreVal');
+    if (sEl) sEl.innerText = score;
+    try {
+        const hs = Math.max(parseInt(localStorage.getItem('highScore') || '0', 10), 0);
+        if (score > hs) {
+            localStorage.setItem('highScore', String(score));
+            const hEl = document.getElementById('highVal'); 
+            if (hEl) hEl.innerText = score;
+        } else {
+            const hEl = document.getElementById('highVal'); 
+            if (hEl) hEl.innerText = hs;
+        }
+    } catch (e) {
+        console.warn("localStorage недоступен");
+    }
+}
+const assets = {
+    mark: 'mark.png',
+    enemy: 'enemy.png',
+    boss: 'boss1.png',
+    kregg: 'kregg.png',
+    viltrum_bg: 'viltrum_planet.png'
+};
+function loadImage(name, src) {
+
+}
+
+
+
+
+let stars = [];
+let score = 0;
+let enemies = [];
+let gameState = 'menu';
+let shake = 0;
+let enemySpawnTimer = 0;
+let difficulty = 1;
+let currentLocation = 'space';
+let isBossFight = false;
+let isKreggFight = false;
+let boss = null;
+
+// Ваше объявление player (перенесите его сюда, если оно было позже)
+
+// --------------------------------
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const GAME_WIDTH = 1200;
+const GAME_HEIGHT = 900;
+
+const images = {};
+function makePlaceholder(name, w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d');
+    cx.fillStyle = '#333'; cx.fillRect(0,0,w,h);
+    cx.strokeStyle = '#fff'; cx.lineWidth = 4; cx.strokeRect(0,0,w,h);
+    cx.fillStyle = name === 'mark' ? 'cyan' : name === 'enemy' ? 'hotpink' : 'orange';
+    if (name === 'viltrum_bg') {
+        // simple planet background
+        cx.fillStyle = '#003040'; cx.fillRect(0,0,w,h);
+        cx.fillStyle = '#205080'; cx.beginPath(); cx.arc(w*0.7,h*0.3,Math.min(w,h)*0.25,0,Math.PI*2); cx.fill();
+    } else {
+        cx.beginPath(); cx.arc(w/2, h/2, Math.min(w,h)*0.28, 0, Math.PI*2); cx.fill();
+    }
+    // mark as image-like
+    c.complete = true;
+    return c;
+}
+
+let loadedCount = 0;
+const totalAssets = Object.keys(assets).length;
+
+function preloadAssets() {
+    console.log("Начинаем загрузку ресурсов...");
+    
+    for (let key in assets) {
+        const img = new Image();
+        
+        // Создаем Promise, чтобы точно знать, когда всё готово
+        img.onload = () => {
+            console.log(`Успешно загружено: ${key}`);
+            images[key] = img;
+            loadedCount++;
+            if (loadedCount === totalAssets) console.log("Все ресурсы готовы!");
+        };
+        
+        img.onerror = () => {
+            console.warn(`Ошибка файла: ${assets[key]}. Создаем заглушку.`);
+            images[key] = makePlaceholder(key, 100, 100);
+            loadedCount++;
+        };
+        
+        img.src = assets[key];
+    }
+}
+// Вызовите это в самом начале
+
+
+for (let i = 0; i < 150; i++) {
+    stars.push({ x: Math.random() * GAME_WIDTH, y: Math.random() * GAME_HEIGHT, size: Math.random() * 2.5, speed: 0.5 + Math.random() * 3 });
+}
+
+
+
+window.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    player.targetX = (e.clientX - rect.left) * (GAME_WIDTH / rect.width);
+    player.targetY = (e.clientY - rect.top) * (GAME_HEIGHT / rect.height);
+});
+
+window.addEventListener('mousedown', () => {
+    if (gameState === 'playing' && !player.isDashing) {
+        player.isDashing = true;
+        player.dashTimer = 15;
+        shake = 10;
+    }
+});
+
+function resize() {
+    canvas.width = GAME_WIDTH;
+    canvas.height = GAME_HEIGHT;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function startGame(diff) {
+    difficulty = diff;
+    score = 0; player.hp = 3; player.rage = 0; player.isRage = false;
+    enemies = []; isBossFight = false; isKreggFight = false; boss = null;
+    currentLocation = 'space';
+    gameState = 'playing';
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('scoreVal').innerText = '0';
+    try {
+        const hs = parseInt(localStorage.getItem('highScore')||'0',10) || 0;
+        const hEl = document.getElementById('highVal'); if (hEl) hEl.innerText = hs;
+    } catch (e) { }
+    console.log('startGame', diff);
+    requestAnimationFrame(loop);
+}
+
+function update() {
+    if (shake > 0) shake *= 0.9;
+    if (player.invulnerable > 0) player.invulnerable--;
+
+    if (player.rage >= 100) player.isRage = true;
+    if (player.isRage) {
+        player.rage -= 0.4;
+        player.invulnerable = 2;
+        if (player.rage <= 0) { player.rage = 0; player.isRage = false; }
+    }
+    const rageFill = document.getElementById('rage-fill');
+    if (rageFill) rageFill.style.width = player.rage + "%";
+
+    // Movement
+    let dx = player.targetX - player.x;
+    let dy = player.targetY - player.y;
+    player.x += dx * 0.1;
+    player.y += dy * 0.1;
+    const margin = 40;
+    player.x = Math.max(margin, Math.min(GAME_WIDTH - margin, player.x));
+    player.y = Math.max(margin, Math.min(GAME_HEIGHT - margin, player.y));
+    if (Math.hypot(dx, dy) > 5) {
+        let targetAngle = Math.atan2(dy, dx) + Math.PI / 2;
+        player.angle += (targetAngle - player.angle) * 0.15;
+    }
+
+    if (player.dashTimer > 0) { player.dashTimer--; } else { player.isDashing = false; }
+
+    // Stars
+    stars.forEach(s => { s.y += s.speed * (player.isDashing ? 6 : 1); if (s.y > GAME_HEIGHT) { s.y = -10; s.x = Math.random() * GAME_WIDTH; } });
+
+    // Boss logic
+    if (isBossFight && boss) {
+        boss.timer++;
+        boss.x += (player.x - boss.x) * 0.05;
+        if (boss.y < 200) boss.y += 2;
+        const distBoss = Math.hypot(player.x - boss.x, player.y - boss.y);
+        if ((player.isDashing || player.isRage) && distBoss < 110) {
+            boss.hp--; shake = 20; player.isDashing = false;
+            if (boss.hp <= 0) {
+                boss = null; isBossFight = false; addScore(1000); currentLocation = 'viltrum';
+            }
+        }
+        if (distBoss < 80 && player.invulnerable <= 0 && !player.isRage) {
+            player.hp--; player.invulnerable = 60; shake = 30;
+            if (player.hp <= 0) location.reload();
+        }
+    } else {
+        // Spawn enemies when not in a boss fight
+        enemySpawnTimer++;
+        if (enemySpawnTimer > 40 / difficulty) {
+            enemies.push({ x: Math.random() * GAME_WIDTH, y: -50, speed: 4 + Math.random() * 4 });
+            enemySpawnTimer = 0;
+        }
+        if (score >= 3000 && score < 10000 && !isBossFight && currentLocation === 'space') {
+            isBossFight = true; boss = { x: 600, y: -200, hp: 30, maxHp: 30, timer: 0 };
+        }
+        if (score >= 10000 && !isBossFight && currentLocation === 'viltrum') {
+            isBossFight = true; isKreggFight = true; boss = { x: 600, y: -200, hp: 60, maxHp: 60, timer: 0 };
+        }
+    }
+
+    // Enemies
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const en = enemies[i];
+        en.y += en.speed;
+        let dist = Math.hypot(player.x - en.x, player.y - en.y);
+        if ((player.isDashing || player.isRage) && dist < 70) {
+            enemies.splice(i, 1); addScore(100);
+            if (!player.isRage) player.rage = Math.min(100, player.rage + 8);
+        } else if (dist < 40 && player.invulnerable <= 0 && !player.isRage) {
+            player.hp--; player.invulnerable = 60; shake = 25;
+            if (player.hp <= 0) location.reload();
+        }
+        if (en.y > GAME_HEIGHT + 50) enemies.splice(i, 1);
+    }
+
+    // Update hearts
+    for (let i = 1; i <= 3; i++) {
+        let h = document.getElementById('h' + i);
+        if (h) h.className = i > player.hp ? 'heart empty' : 'heart';
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000005'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    if (shake > 1) ctx.translate(Math.random() * shake - shake / 2, Math.random() * shake - shake / 2);
+    ctx.strokeStyle = 'rgba(255,215,0,0.3)'; ctx.lineWidth = 5; ctx.strokeRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    if (currentLocation === 'viltrum' && images.viltrum_bg && images.viltrum_bg.complete) {
+        ctx.globalAlpha = 0.5; ctx.drawImage(images.viltrum_bg, 0, 0, GAME_WIDTH, GAME_HEIGHT); ctx.globalAlpha = 1;
+    }
+
+    ctx.fillStyle = 'white'; stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+
+    enemies.forEach(en => { if (images.enemy && images.enemy.complete) ctx.drawImage(images.enemy, en.x - 35, en.y - 35, 70, 70); else { ctx.fillStyle = 'hotpink'; ctx.fillRect(en.x-20,en.y-20,40,40); } });
+
+    if (isBossFight && boss) {
+        let img = isKreggFight ? images.kregg : images.boss;
+        if (img && img.complete) ctx.drawImage(img, boss.x - 125, boss.y - 125, 250, 250);
+        ctx.fillStyle = 'red'; ctx.fillRect(boss.x - 60, boss.y - 140, (boss.hp / boss.maxHp) * 120, 10);
+    }
+
+    // Player
+    ctx.save();
+    ctx.translate(player.x, player.y); ctx.rotate(player.angle);
+    if (player.isRage) { ctx.shadowBlur = 40; ctx.shadowColor = 'red'; }
+    else if (player.isDashing) { ctx.shadowBlur = 20; ctx.shadowColor = 'cyan'; }
+    const scaleY = player.isDashing ? 1.4 : 1.0;
+    if (images.mark && images.mark.complete) ctx.drawImage(images.mark, -45, -45 * scaleY, 90, 90 * scaleY);
+    else { ctx.fillStyle = 'cyan'; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+
+    if (player.invulnerable > 0) {
+        if (Math.floor(Date.now() / 50) % 2 === 0) ctx.globalAlpha = 0.3;
+        ctx.shadowBlur = 20; ctx.shadowColor = 'red';
+    }
+
+    ctx.restore();
+
+    // debug: always draw a small magenta dot where the player is and update debug panel
+    try {
+        ctx.save();
+        ctx.fillStyle = 'magenta';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    } catch (e) {
+        console.error('draw debug failed', e);
+    }
+
+    const dbg = document.getElementById('debug');
+    if (dbg) {
+        dbg.innerText = `player: ${Math.round(player.x)},${Math.round(player.y)}\nenemies: ${enemies.length}\nscore: ${score}\nstate: ${gameState}\nimages.mark: ${images.mark && images.mark.complete}`;
+    }
+}
+
+function loop() {
+    if (gameState === 'playing') {
+        // debug: confirm loop running
+        if (typeof window._loopLogged === 'undefined') { console.log('game loop running'); window._loopLogged = true; }
+        update(); draw(); requestAnimationFrame(loop);
+    }
+}
+</script>
+</body>
+</html>
